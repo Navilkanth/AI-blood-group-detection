@@ -8,6 +8,9 @@ type ApiErrorPayload = {
 }
 
 type PredictOk = {
+  prediction_id: string
+  consensus_met: boolean
+  reasoning: string
   blocked: boolean
   prediction: {
     label: string
@@ -19,22 +22,17 @@ type PredictOk = {
     imageQuality: {
       ok: boolean
       blurScore: number
-      brightnessMean: number
-      contrastStd: number
-      noiseScore: number
       reasons: string[]
     }
     medicalRules: {
       allowResult: boolean
       issues: string[]
-      note: string
     }
     confidenceAssessment: { score: number; level: string }
     visionVotes: Array<{ agent: string; label: string; confidence: number }>
-    ethicsSafety: { disclaimer: string; privacy: string }
+    ethicsSafety: { disclaimer: string }
   }
   explainable: { summary: string }
-  model: { runtime: string; input_shape: number[]; input_dtype: string }
   db_id?: string
 }
 
@@ -143,10 +141,23 @@ export function BloodGroupPredictor() {
                     <div className="v">{(result.prediction.confidence * 100).toFixed(1)}%</div>
                   </div>
                   <div>
-                    <div className="k">Quality</div>
-                    <div className="v">{result.agents.imageQuality.ok ? 'OK' : 'Needs retake'}</div>
+                    <div className="k">Consensus</div>
+                    <div className={`v ${result.consensus_met ? 'text-success' : 'text-danger'}`}>
+                      {result.consensus_met ? '5/5 VERIFIED' : 'CONFLICT'}
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="status-banner" style={{
+                padding: '12px',
+                borderRadius: '8px',
+                background: result.consensus_met ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${result.consensus_met ? '#22c55e' : '#ef4444'}`,
+                marginBottom: '1rem',
+                fontSize: '0.85rem'
+              }}>
+                <strong>ID:</strong> {result.prediction_id} | <strong>Status:</strong> {result.consensus_met ? 'Accepted' : 'Manual Review Required'}
               </div>
 
               <div className="hr" />

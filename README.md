@@ -18,11 +18,11 @@ From the repo root:
 
 ```bash
 cd backend
+rmdir /s /q .venv
 py -3.12 -m venv .venv
-.venv\\Scripts\\python -m pip install --upgrade pip
-.venv\\Scripts\\pip install -r requirements.txt
-copy .env.example .env
-.venv\\Scripts\\python app.py
+.\.venv\Scripts\activate
+pip install -r requirements.txt  or  pip install -r locked_requirements.txt
+python app.py
 ```
 
 Backend will run at `http://localhost:5000`.

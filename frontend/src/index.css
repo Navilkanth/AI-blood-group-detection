@@ -18,6 +18,14 @@
   --success: #22c55e;
 }
 
+.text-success {
+  color: var(--success);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
 * {
   box-sizing: border-box;
 }
