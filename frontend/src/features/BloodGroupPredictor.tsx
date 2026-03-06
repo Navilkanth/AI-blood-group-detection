@@ -18,6 +18,11 @@ type PredictOk = {
     confidence: number
     probs: Record<string, number>
   }
+  haemoglobin?: {
+    hb_g_dl: number
+    status: string
+    referenceRange: { low: number; high: number }
+  }
   agents: {
     imageQuality: {
       ok: boolean
@@ -131,7 +136,7 @@ export function BloodGroupPredictor() {
                   <div className="big">{result.prediction.label}</div>
                   {result.db_id && (
                     <div style={{ marginTop: '8px', fontSize: '0.7rem', color: '#22863a', fontWeight: 'bold' }}>
-                      ✓ Saved to Atlas
+                      ✓ Saved to History
                     </div>
                   )}
                 </div>
@@ -149,12 +154,30 @@ export function BloodGroupPredictor() {
                 </div>
               </div>
 
+              {result.haemoglobin && (
+                <div className="infoBox hbBox" style={{ marginTop: '1rem', background: '#f6f8fa', border: '1px solid #d0d7de', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="k" style={{ fontSize: '0.75rem', color: '#666', textTransform: 'uppercase' }}>Estimated Haemoglobin</div>
+                    <div className="tag" style={{
+                      background: result.haemoglobin.status === 'normal' ? '#dafbe1' : '#ffeef0',
+                      color: result.haemoglobin.status === 'normal' ? '#1a7f37' : '#cf222e',
+                      fontSize: '0.7rem',
+                      fontWeight: 'bold',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>{result.haemoglobin.status.toUpperCase()}</div>
+                  </div>
+                  <div className="v" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '4px 0' }}>{result.haemoglobin.hb_g_dl.toFixed(1)} g/dL</div>
+                  <div className="muted" style={{ fontSize: '0.75rem' }}>Ref: {result.haemoglobin.referenceRange.low}-{result.haemoglobin.referenceRange.high} g/dL</div>
+                </div>
+              )}
+
               <div className="status-banner" style={{
                 padding: '12px',
                 borderRadius: '8px',
                 background: result.consensus_met ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                 border: `1px solid ${result.consensus_met ? '#22c55e' : '#ef4444'}`,
-                marginBottom: '1rem',
+                margin: '1rem 0',
                 fontSize: '0.85rem'
               }}>
                 <strong>ID:</strong> {result.prediction_id} | <strong>Status:</strong> {result.consensus_met ? 'Accepted' : 'Manual Review Required'}
@@ -184,7 +207,7 @@ export function BloodGroupPredictor() {
 
               {!result.agents.imageQuality.ok ? (
                 <div className="warnBox">
-                  <div className="sectionTitle">Retake guidance</div>
+                  <div className="sectionTitle">Quality Guidance</div>
                   <ul>
                     {result.agents.imageQuality.reasons.map((r) => (
                       <li key={r}>{r}</li>
@@ -192,19 +215,6 @@ export function BloodGroupPredictor() {
                   </ul>
                 </div>
               ) : null}
-
-              <div className="section">
-                <div className="sectionTitle">Agent votes</div>
-                <div className="voteGrid">
-                  {result.agents.visionVotes.map((v) => (
-                    <div key={v.agent} className="voteCard">
-                      <div className="voteAgent">{v.agent}</div>
-                      <div className="votePick">{v.label}</div>
-                      <div className="muted">{(v.confidence * 100).toFixed(1)}%</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               <div className="hr" />
               <div className="muted small">{result.agents.ethicsSafety.disclaimer}</div>
@@ -215,4 +225,3 @@ export function BloodGroupPredictor() {
     </div>
   )
 }
-

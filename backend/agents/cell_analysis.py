@@ -64,12 +64,19 @@ def analyze_cells(rgb_uint8: np.ndarray, *, return_overlay: bool = True) -> dict
             cv2.rectangle(ov, (x, y), (x + w, y + h), (255, 0, 255), 2)
         overlay_rgb = ov
 
+    total = rbc_count + wbc_count
+    rbc_pct = (rbc_count / total * 100) if total > 0 else 0
+    wbc_pct = (wbc_count / total * 100) if total > 0 else 0
+
     out: dict[str, Any] = {
-        "rbcCountEstimate": rbc_count,
-        "wbcCountEstimate": wbc_count,
+        "rbcPercentage": round(rbc_pct, 1),
+        "wbcPercentage": round(wbc_pct, 1),
+        "totalCells": total,
+        "rbcCount": rbc_count, 
+        "wbcCount": wbc_count,
         "notes": [
-            "Counts are rough estimates from image heuristics (not calibrated).",
-            "For real clinical counts, use validated lab analyzers or trained models with dataset calibration.",
+            "Cell levels are shown as percentages of total cells counted via CV analytics.",
+            "For diagnostic accuracy, refer to a calibrated laboratory test."
         ],
     }
     if overlay_rgb is not None:

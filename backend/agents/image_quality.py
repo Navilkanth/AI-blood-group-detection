@@ -50,6 +50,16 @@ def assess_image_quality(rgb_uint8: np.ndarray) -> ImageQualityResult:
         ok = False
         reasons.append("Low contrast (hard to see agglutination patterns).")
 
+    # Blood Sample Detection (Redness/Color-based)
+    avg_color = np.mean(rgb_uint8, axis=(0, 1))
+    r_to_g = avg_color[0] / (avg_color[1] + 1e-6)
+    r_to_b = avg_color[0] / (avg_color[2] + 1e-6)
+    
+    # Simple check for red/pink dominance
+    if r_to_g < 1.05 or r_to_b < 1.1:
+        ok = False
+        reasons.append("Invalid sample: Image does not appear to be a blood sample.")
+
     return ImageQualityResult(
         ok=ok,
         blur_score=blur_score,

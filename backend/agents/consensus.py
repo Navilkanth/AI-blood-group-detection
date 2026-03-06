@@ -30,6 +30,15 @@ def _center_crop(rgb: np.ndarray, frac: float) -> np.ndarray:
     return cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
 
 
+def _adjust_brightness(rgb: np.ndarray, factor: float) -> np.ndarray:
+    return np.clip(rgb.astype(np.float32) * factor, 0, 255).astype(np.uint8)
+
+
+def _adjust_contrast(rgb: np.ndarray, factor: float) -> np.ndarray:
+    mean = np.mean(rgb)
+    return np.clip((rgb.astype(np.float32) - mean) * factor + mean, 0, 255).astype(np.uint8)
+
+
 def build_votes(
     rgb_uint8: np.ndarray,
     predict_proba: Callable[[np.ndarray], np.ndarray],
@@ -41,6 +50,10 @@ def build_votes(
         ("rot_-6", _rotate(rgb_uint8, -6.0)),
         ("rot_+6", _rotate(rgb_uint8, +6.0)),
         ("crop_0.85", _center_crop(rgb_uint8, 0.85)),
+        ("bright_1.2", _adjust_brightness(rgb_uint8, 1.2)),
+        ("bright_0.8", _adjust_brightness(rgb_uint8, 0.8)),
+        ("contrast_1.2", _adjust_contrast(rgb_uint8, 1.2)),
+        ("noise", np.clip(rgb_uint8.astype(np.int16) + np.random.randint(-10, 10, rgb_uint8.shape), 0, 255).astype(np.uint8)),
     ]
 
     votes: list[Vote] = []
@@ -50,7 +63,7 @@ def build_votes(
         label = labels[idx] if idx < len(labels) else str(idx)
         votes.append(
             Vote(
-                agent=f"vision_{name}",
+                agent=f"vision_voter_{name}",
                 probs=[float(x) for x in p.tolist()],
                 label=label,
                 confidence=float(p[idx]),

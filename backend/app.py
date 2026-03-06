@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import uuid
+import datetime
 from typing import Any
 
 from flask import Flask, jsonify, request
@@ -10,14 +12,13 @@ from agents.cell_analysis import analyze_cells
 from agents.confidence import assess_confidence
 from agents.consensus import build_votes, consensus_from_votes, votes_to_dict
 from agents.ethics import ethics_safety_note
-from agents.hemoglobin import check_hemoglobin
+from agents.hemoglobin import check_hemoglobin, estimate_hb_from_image
 from agents.image_quality import assess_image_quality, to_dict as quality_to_dict
 from agents.medical_rules import validate_medical_rules
 from agents.model_runtime import build_predictor
 from config import settings
 from utils.image_io import decode_image_bytes
 from utils.mongodb import db_manager
-import uuid
 
 
 app = Flask(__name__)
@@ -89,6 +90,20 @@ def predict_blood_group() -> Any:
     quality = assess_image_quality(decoded.rgb)
     quality_dict = quality_to_dict(quality)
 
+    # Check for Invalid Sample (as part of the quality check)
+    is_invalid = any("Invalid sample" in r for r in quality.reasons)
+    
+    if is_invalid:
+        return jsonify({
+            "error": "Invalid Sample: The uploaded image does not appear to be a valid blood sample.",
+            "blocked": True,
+            "reasoning": "Analysis terminated: Image content mismatch (not a blood group image).",
+            "quality": quality_dict
+        }), 422
+
+    hb_val = estimate_hb_from_image(decoded.rgb)
+    hb_report = check_hemoglobin(hb_val, "other")
+
     votes = build_votes(decoded.rgb, _predictor.predict_proba, _labels)
     consensus = consensus_from_votes(votes, _labels)
 
@@ -101,43 +116,39 @@ def predict_blood_group() -> Any:
     confidence = assess_confidence(float(consensus["confidence"]))
     ethics = ethics_safety_note()
 
-    # --- Multi-Agent Consensus Logic (5 Agents) ---
-    # We define agreement as the agent being "satisfied" with the prediction.
-    agent_status = {
-        "Vision Consensus Agent": True, # Anchor
-        "Medical Rules Agent": rules["allowResult"],
-        "Image Validation Agent": quality.ok,
-        "Confidence Assessment Agent": confidence["score"] >= settings.min_confidence,
-        "Safety & Ethics Agent": True, # For demo, always valid unless extreme cases
-    }
-    
-    # Calculate agreement based on vision variants too (sub-agents)
+    # --- Multi-Agent Consensus Logic (Robust 5+9 Agent System) ---
     vision_labels = [v.label for v in votes]
     top_label = consensus["label"]
     vision_agree_count = sum(1 for l in vision_labels if l == top_label)
+    vision_voter_ratio = vision_agree_count / len(votes)
+    
+    # Internal vision consensus must be strong (>70% of voters agree)
+    vision_consensus_valid = vision_voter_ratio >= 0.70
+
+    agent_status = {
+        "Vision Consensus Agent": vision_consensus_valid, 
+        "Medical Rules Agent": rules["allowResult"],
+        "Image Validation Agent": quality.ok,
+        "Confidence Assessment Agent": confidence["score"] >= settings.min_confidence,
+        "Safety & Ethics Agent": True,
+    }
     
     agree_names = [name for name, ok in agent_status.items() if ok]
     disagree_names = [name for name, ok in agent_status.items() if not ok]
     agree_count = len(agree_names)
-    
-    consensus_met = agree_count == 5
+    consensus_met = (agree_count == 5) # All high-level agents must agree
     
     reasoning = (
-        f"{agree_count}/5 agents ({int(agree_count/5*100)}%) agree on blood type: {top_label}. "
-        f"Average confidence: {int(consensus['confidence']*100)}%. "
+        f"{agree_count}/5 high-level agents (Verification {int(agree_count/5*100)}%) agree on blood group: {top_label}. "
+        f"Multi-voter vision agreement: {int(vision_voter_ratio*100)}% ({vision_agree_count}/{len(votes)} sub-agents). "
+        f"Consensus confidence: {int(consensus['confidence']*100)}%. "
     )
+    if not vision_consensus_valid:
+        reasoning += f"CRITICAL: Vision sub-agents disagreed! "
     if disagree_names:
-        reasoning += f"Disagreement: {', '.join(disagree_names)} predicted differently. "
+        reasoning += f"Blocked by: {', '.join(disagree_names)}. "
     
-    # Detailed reasoning bits
-    reasoning += f"Image validation: Resolution \u2713, Brightness {'\u2713' if quality.brightness_mean > 40 else 'X'}, Contrast {'\u2713' if quality.contrast_std > 25 else 'X'}. "
-    reasoning += f"Confidence assessment: {confidence['level'].upper()}. "
-    reasoning += f"Agent agreement: {int(vision_agree_count/len(votes)*100)}%, Average confidence: {int(consensus['confidence']*100)}%, Image quality: {int(quality.blur_score/2)}% "
-    
-    if not consensus_met:
-        reasoning += f"Safety assessment: \u26a0 CAUTION RECOMMENDED. Confidence level below threshold, Agent conflict risk: HIGH. Recommendation: Request manual review."
-    else:
-        reasoning += "Safety assessment: \u2713 COMPLIANT. Consensus achieved across all agents."
+    reasoning += f"Estimated Hb: {hb_val:.1f} g/dL."
 
     response: dict[str, Any] = {
         "prediction_id": str(uuid.uuid4()),
@@ -149,6 +160,7 @@ def predict_blood_group() -> Any:
             "confidence": consensus["confidence"],
             "probs": consensus["meanProbs"],
         },
+        "haemoglobin": hb_report,
         "agents": {
             "imageQuality": quality_dict,
             "visionVotes": votes_to_dict(votes),
@@ -163,36 +175,32 @@ def predict_blood_group() -> Any:
         "image": {"width": decoded.width, "height": decoded.height},
         "model": _model_info.__dict__,
         "explainable": {
-            "summary": reasoning # Use the detailed reasoning as the summary
+            "summary": reasoning 
         },
+        "blocked": not consensus_met,
     }
 
-    # Always return 200 with a 'blocked' flag instead of HTTP 422,
-    # so the frontend can still display the AI output.
-    response["blocked"] = not consensus_met
-
-    # Persistence: Save to MongoDB if configured
+    # Persistence
     try:
         db_id = db_manager.save_report(response)
         if db_id:
             response["db_id"] = db_id
     except Exception as e:
-        print(f"Non-blocking persistence error: {e}")
+        print(f"DB Error: {e}")
 
     return jsonify(response)
 
 
 @app.post("/api/check/hemoglobin")
 def hemoglobin_endpoint() -> Any:
-    data = request.get_json(silent=True) or {}
-    try:
-        hb = float(data.get("hb_g_dl"))
-        sex = str(data.get("sex", "other")).lower()
-        if sex not in {"male", "female", "other"}:
-            sex = "other"
-        return jsonify(check_hemoglobin(hb, sex))  # type: ignore[arg-type]
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    if "image" not in request.files:
+        return jsonify({"error": "Missing multipart file field 'image'."}), 400
+    
+    image_bytes = request.files["image"].read()
+    decoded = decode_image_bytes(image_bytes)
+    
+    hb_val = estimate_hb_from_image(decoded.rgb)
+    return jsonify(check_hemoglobin(hb_val, "other"))
 
 
 @app.post("/api/analyze/cells")
@@ -204,6 +212,30 @@ def cells_endpoint() -> Any:
     return jsonify(analyze_cells(decoded.rgb, return_overlay=True))
 
 
+@app.get("/api/db-status")
+def db_status() -> Any:
+    try:
+        status = db_manager.get_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({"connected": False, "error": str(e)}), 500
+
+
+@app.get("/api/history")
+def history() -> Any:
+    try:
+        records = db_manager.get_reports(limit=100)
+        # Ensure compatibility
+        for r in records:
+            if "_id" not in r:
+                r["_id"] = r.get("prediction_id", "unknown_id")
+            if "timestamp" not in r:
+                r["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        
+        return jsonify({"records": records})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
-

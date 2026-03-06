@@ -4,8 +4,11 @@ import { apiUrl } from '../api'
 type ApiErrorPayload = { error?: string }
 
 type CellsResult = {
-  rbcCountEstimate: number
-  wbcCountEstimate: number
+  rbcPercentage: number
+  wbcPercentage: number
+  totalCells: number
+  rbcCount: number
+  wbcCount: number
   overlayPngBase64?: string
   notes: string[]
 }
@@ -22,7 +25,7 @@ export function CellsAnalyzer() {
     setError(null)
     setResult(null)
     if (!file) {
-      setError('Please choose an image.')
+      setError('Please choose a microscope image.')
       return
     }
     setBusy(true)
@@ -53,9 +56,9 @@ export function CellsAnalyzer() {
     <div className="panel">
       <div className="panelHeader">
         <div>
-          <h2 className="h2">RBC / WBC (image heuristic)</h2>
+          <h2 className="h2">RBC / WBC Relative Levels</h2>
           <p className="muted">
-            Upload a microscope image. This is a basic OpenCV estimate for demo purposes (not calibrated).
+            Upload a microscope image. RBC and WBC levels are shown as percentages of total cells counted.
           </p>
         </div>
       </div>
@@ -74,38 +77,41 @@ export function CellsAnalyzer() {
             <div className="previewEmpty">No image selected</div>
           )}
           <button className="primary" onClick={onAnalyze} disabled={busy || !file} type="button">
-            {busy ? 'Analyzing…' : 'Analyze'}
+            {busy ? 'Calculating...' : 'Analyze Sample'}
           </button>
           {error ? <div className="errorBox">{error}</div> : null}
         </div>
 
         <div className="card">
           {!result ? (
-            <div className="muted">Output will appear here.</div>
+            <div className="muted">Results will appear here.</div>
           ) : (
             <>
               <div className="resultTop">
                 <div className="resultMeta">
                   <div>
-                    <div className="k">RBC estimate</div>
-                    <div className="v">{result.rbcCountEstimate}</div>
+                    <div className="k">Total Cells Found</div>
+                    <div className="v" style={{ fontSize: '1.5rem' }}>{result.totalCells}</div>
                   </div>
                   <div>
-                    <div className="k">WBC estimate</div>
-                    <div className="v">{result.wbcCountEstimate}</div>
+                    <div className="k">RBC Level (%)</div>
+                    <div className="v" style={{ fontSize: '2rem', color: '#cb2431' }}>{result.rbcPercentage}%</div>
+                  </div>
+                  <div>
+                    <div className="k">WBC Level (%)</div>
+                    <div className="v" style={{ fontSize: '2rem', color: '#6f42c1' }}>{result.wbcPercentage}%</div>
                   </div>
                 </div>
               </div>
               <div className="hr" />
               {overlayUrl ? (
                 <div className="previewWrap">
+                  <p className="small muted center">Detection Overlay (Green: RBC, Pink: WBC)</p>
                   <img className="preview" src={overlayUrl} alt="overlay" />
                 </div>
               ) : null}
               <ul className="muted small">
-                {result.notes.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
+                {result.notes.map((n) => <li key={n}>{n}</li>)}
               </ul>
             </>
           )}
@@ -114,4 +120,3 @@ export function CellsAnalyzer() {
     </div>
   )
 }
-

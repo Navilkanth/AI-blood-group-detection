@@ -1,76 +1,70 @@
 from __future__ import annotations
 import datetime
 import os
+import sqlite3
+import json
 from typing import Any
 from config import settings
 
-class MongoDBManager:
+class DatabaseManager:
     def __init__(self) -> None:
-        self._client: Any = None
-        self._db: Any = None
-        self._collection: Any = None
-        self._initialized = False
+        self.db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "records.db")
+        self._init_sqlite()
+
+    def _init_sqlite(self):
+        """Initialize the local SQLite database if it doesn't exist."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS reports (
+                    id TEXT PRIMARY KEY,
+                    timestamp TEXT,
+                    data TEXT
+                )
+            """)
 
     def _ensure_connected(self) -> bool:
-        if not settings.mongo_uri or settings.mongo_uri.strip() == "":
-            return False
-            
-        if self._initialized:
-            return True
-
-        try:
-            from pymongo import MongoClient
-            self._client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
-            self._db = self._client[settings.mongo_db_name]
-            self._collection = self._db[settings.mongo_collection_name]
-            # Try a ping to verify connection
-            self._client.admin.command('ping')
-            self._initialized = True
-            print("Successfully connected to MongoDB Atlas.")
-            return True
-        except ImportError:
-            print("MongoDB error: 'pymongo' library not found. Please run: pip install pymongo dnspython")
-            return False
-        except Exception as e:
-            print(f"Failed to connect to MongoDB Atlas: {e}")
-            return False
+        # We always have SQLite as a fallback or primary for "db file" access
+        return True
 
     def save_report(self, report_data: dict[str, Any]) -> str | None:
-        if not self._ensure_connected():
-            return None
-
         try:
-            document = {
-                **report_data,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc),
-            }
-            # Clean up potentially non-serializable objects (like numpy arrays)
-            # This is a precaution if response contains raw arrays
-            result = self._collection.insert_one(document)
-            return str(result.inserted_id)
+            report_id = report_data.get("prediction_id", str(datetime.datetime.now().timestamp()))
+            timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            
+            # Save to SQLite
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO reports (id, timestamp, data) VALUES (?, ?, ?)",
+                    (report_id, timestamp, json.dumps(report_data))
+                )
+            return report_id
         except Exception as e:
-            print(f"Error saving report to MongoDB: {e}")
+            print(f"Error saving report to SQLite: {e}")
             return None
 
     def get_reports(self, limit: int = 50) -> list[dict[str, Any]]:
-        if not self._ensure_connected():
-            return []
-
         try:
-            # Sort by timestamp descending
-            cursor = self._collection.find().sort("timestamp", -1).limit(limit)
-            reports = []
-            for doc in cursor:
-                # Convert ObjectId to string for JSON serialization
-                if "_id" in doc:
-                    doc["_id"] = str(doc["_id"])
-                # Convert datetime to ISO format
-                if "timestamp" in doc and isinstance(doc["timestamp"], datetime.datetime):
-                    doc["timestamp"] = doc["timestamp"].isoformat()
-                reports.append(doc)
-            return reports
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT data FROM reports ORDER BY timestamp DESC LIMIT ?", 
+                    (limit,)
+                )
+                reports = []
+                for row in cursor:
+                    reports.append(json.loads(row["data"]))
+                return reports
         except Exception as e:
-            print(f"Error fetching reports from MongoDB: {e}")
+            print(f"Error fetching reports: {e}")
             return []
 
-db_manager = MongoDBManager()
+    def get_status(self) -> dict[str, Any]:
+        return {
+            "connected": True,
+            "type": "SQLite (Local File)",
+            "database": "records.db",
+            "collection": "reports",
+            "path": self.db_path
+        }
+
+db_manager = DatabaseManager()

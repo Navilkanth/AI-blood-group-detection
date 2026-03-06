@@ -21,7 +21,7 @@ type HistoryRecord = {
 
 export function History() {
     const [records, setRecords] = useState<HistoryRecord[]>([])
-    const [dbStatus, setDbStatus] = useState<{ connected: boolean; database?: string; collection?: string } | null>(null)
+    const [dbStatus, setDbStatus] = useState<{ connected: boolean; type?: string; database?: string; collection?: string } | null>(null)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -62,17 +62,17 @@ export function History() {
             <div className="panelHeader">
                 <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <h2 className="h2" style={{ margin: 0 }}>Patient Records (MongoDB)</h2>
+                        <h2 className="h2" style={{ margin: 0 }}>Patient Records ({dbStatus?.type || 'DB'})</h2>
                         {dbStatus && (
                             <div className={`db-indicator ${dbStatus.connected ? 'online' : 'offline'}`}>
-                                {dbStatus.connected ? '● Atlas Online' : '● Offline'}
+                                {dbStatus.connected ? `● ${dbStatus.type || 'Connected'}` : '● Offline'}
                             </div>
                         )}
                     </div>
                     <p className="muted" style={{ marginTop: '4px' }}>
                         {dbStatus?.connected
-                            ? `Connected to ${dbStatus.database}.${dbStatus.collection}`
-                            : 'Database connection string required in .env'}
+                            ? `Storage: ${dbStatus.database} > ${dbStatus.collection}`
+                            : 'Database connection missing'}
                     </p>
                 </div>
                 <button className="primary small" onClick={fetchHistory} disabled={busy}>
