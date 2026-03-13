@@ -6,13 +6,17 @@ import { CellsAnalyzer } from './features/CellsAnalyzer'
 import { HemoglobinCheck } from './features/HemoglobinCheck'
 
 import { History } from './features/History'
+import { MalariaPredictor } from './features/MalariaPredictor'
+import { CancerPredictor } from './features/CancerPredictor'
 
 function App() {
-  const [tab, setTab] = useState<'blood' | 'hb' | 'cells' | 'history'>('blood')
+  const [tab, setTab] = useState<'blood' | 'hb' | 'cells' | 'malaria' | 'cancer' | 'history'>('blood')
   const subtitle = useMemo(() => {
     if (tab === 'blood') return 'ABO prediction with multi-agent cross-verification'
     if (tab === 'hb') return 'Reference range check'
     if (tab === 'cells') return 'RBC/WBC rough estimate (demo)'
+    if (tab === 'malaria') return 'Neural analysis for Plasmodium parasites'
+    if (tab === 'cancer') return 'Deep CNN analysis for cell malignancy'
     return 'Database records stored in MongoDB Atlas'
   }, [tab])
 
@@ -33,6 +37,12 @@ function App() {
           <TabButton active={tab === 'cells'} onClick={() => setTab('cells')}>
             RBC / WBC
           </TabButton>
+          <TabButton active={tab === 'malaria'} onClick={() => setTab('malaria')}>
+            Malaria
+          </TabButton>
+          <TabButton active={tab === 'cancer'} onClick={() => setTab('cancer')}>
+            Cancer
+          </TabButton>
           <TabButton active={tab === 'history'} onClick={() => setTab('history')}>
             History
           </TabButton>
@@ -43,6 +53,8 @@ function App() {
         {tab === 'blood' ? <BloodGroupPredictor /> : null}
         {tab === 'hb' ? <HemoglobinCheck /> : null}
         {tab === 'cells' ? <CellsAnalyzer /> : null}
+        {tab === 'malaria' ? <MalariaPredictor /> : null}
+        {tab === 'cancer' ? <CancerPredictor /> : null}
         {tab === 'history' ? <History /> : null}
       </main>
 

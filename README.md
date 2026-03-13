@@ -6,6 +6,8 @@ This project serves your trained model (`.tflite` / `.keras`) behind a **Flask A
 - Provide **multi-agent style cross-verification** (image quality + multiple augmented votes + consensus + confidence + safety rules)
 - Run additional **Hemoglobin (Hb)** checks (rule-based)
 - Provide **RBC/WBC** rough estimates from microscope images (simple OpenCV heuristics; demo only)
+- **Malaria Detection**: High-accuracy analysis for Plasmodium parasites in blood smear images.
+- **Blood Cancer Detection**: Deep CNN analysis of cell morphology to detect indications of malignancy.
 
 ## Tech stack
 
@@ -20,7 +22,7 @@ From the repo root:
 cd backend
 rmdir /s /q .venv
 py -3.12 -m venv .venv
-.\.venv\Scripts\activate
+.venv\Scripts\activate
 pip install -r requirements.txt  or  pip install -r locked_requirements.txt
 python app.py
 ```

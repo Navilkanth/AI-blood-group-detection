@@ -35,6 +35,11 @@ type PredictOk = {
     }
     confidenceAssessment: { score: number; level: string }
     visionVotes: Array<{ agent: string; label: string; confidence: number }>
+    rhFactorAgent?: {
+      symbol: string
+      confidence: number
+      method: string
+    }
     ethicsSafety: { disclaimer: string }
   }
   explainable: { summary: string }
@@ -79,19 +84,15 @@ export function BloodGroupPredictor() {
     }
   }
 
-  const probsSorted = useMemo(() => {
-    if (!result) return []
-    return Object.entries(result.prediction.probs).sort((a, b) => b[1] - a[1])
-  }, [result])
 
   return (
     <div className="panel">
       <div className="panelHeader">
         <div>
-          <h2 className="h2">Blood Group Prediction (ABO)</h2>
+          <h2 className="h2">AI Blood Group Analysis (8 Groups)</h2>
           <p className="muted">
-            Upload a blood sample image. The system runs multi-step checks + consensus voting and returns a tentative ABO
-            label with confidence.
+            Comprehensive ABO + Rh detection. The system analyzes sample texture for Rh factor
+            and morphology for ABO, providing results for all 8 groups (±).
           </p>
         </div>
       </div>
@@ -142,13 +143,19 @@ export function BloodGroupPredictor() {
                 </div>
                 <div className="resultMeta">
                   <div>
-                    <div className="k">Confidence</div>
+                    <div className="k">ABO Confidence</div>
                     <div className="v">{(result.prediction.confidence * 100).toFixed(1)}%</div>
                   </div>
+                  {result.agents.rhFactorAgent && (
+                    <div>
+                      <div className="k">Rh ({result.agents.rhFactorAgent.symbol}) Conf.</div>
+                      <div className="v">{(result.agents.rhFactorAgent.confidence * 100).toFixed(1)}%</div>
+                    </div>
+                  )}
                   <div>
-                    <div className="k">Consensus</div>
+                    <div className="k">Status</div>
                     <div className={`v ${result.consensus_met ? 'text-success' : 'text-danger'}`}>
-                      {result.consensus_met ? '5/5 VERIFIED' : 'CONFLICT'}
+                      {result.consensus_met ? 'VERIFIED' : 'CONFLICT'}
                     </div>
                   </div>
                 </div>
@@ -190,20 +197,6 @@ export function BloodGroupPredictor() {
                 <div className="muted">{result.explainable.summary}</div>
               </div>
 
-              <div className="section">
-                <div className="sectionTitle">Class probabilities</div>
-                <div className="probs">
-                  {probsSorted.map(([label, p]) => (
-                    <div key={label} className="probRow">
-                      <div className="probLabel">{label}</div>
-                      <div className="probBar">
-                        <div className="probFill" style={{ width: `${Math.max(0, Math.min(1, p)) * 100}%` }} />
-                      </div>
-                      <div className="probVal">{(p * 100).toFixed(1)}%</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               {!result.agents.imageQuality.ok ? (
                 <div className="warnBox">
