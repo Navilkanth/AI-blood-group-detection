@@ -39,7 +39,8 @@ export function CellsAnalyzer() {
         setError(payload?.error ?? 'Request failed')
         return
       }
-      setResult(data as CellsResult)
+      const json = data as { analysis: CellsResult }
+      setResult(json.analysis)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Network error')
     } finally {
@@ -111,7 +112,7 @@ export function CellsAnalyzer() {
                 </div>
               ) : null}
               <ul className="muted small">
-                {result.notes.map((n) => <li key={n}>{n}</li>)}
+                {result.notes?.map((n) => <li key={n}>{n}</li>)}
               </ul>
             </>
           )}

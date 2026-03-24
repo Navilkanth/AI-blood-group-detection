@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { apiUrl } from '../api'
 
-type ApiErrorPayload = { error?: string }
 
 type HbResult = {
   hb_g_dl: number
@@ -30,13 +29,16 @@ export function HemoglobinCheck() {
       const form = new FormData()
       form.append('image', file)
       const res = await fetch(apiUrl('/api/check/hemoglobin'), { method: 'POST', body: form })
-      const data: unknown = await res.json()
-      const payload = data as ApiErrorPayload
+      const data: any = await res.json()
       if (!res.ok) {
-        setError(payload?.error ?? 'Analysis failed')
+        setError(data?.error ?? 'Analysis failed')
         return
       }
-      setResult(data as HbResult)
+      if (data.haemoglobin) {
+        setResult(data.haemoglobin as HbResult)
+      } else {
+        setResult(data as HbResult)
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Network error')
     } finally {

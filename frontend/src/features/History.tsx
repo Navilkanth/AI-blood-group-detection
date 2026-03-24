@@ -102,7 +102,7 @@ export function History() {
             return r.agents.medicalRules.allowResult ? (
                 <span className="tag success">Screened</span>
             ) : (
-                <span className="tag warn" title={r.agents.medicalRules.issues.join(', ')}>
+                <span className="tag warn" title={r.agents.medicalRules.issues?.join(', ')}>
                     Blocked
                 </span>
             )
