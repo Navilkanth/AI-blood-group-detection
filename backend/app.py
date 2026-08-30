@@ -25,8 +25,8 @@ from utils.mongodb import db_manager
 
 
 app = Flask(__name__)
-# Enable CORS for the specific origins used in development
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]}})
+# Enable CORS for frontend clients (including Vercel deployments and localhost)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 @app.errorhandler(Exception)
 def handle_exception(e):
