@@ -9,24 +9,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _resolve_file_path(env_var: str, default_filename: str) -> str:
+    val = os.getenv(env_var)
+    if val and os.path.exists(val):
+        return val
+    bundled = os.path.join(os.path.dirname(__file__), default_filename)
+    if os.path.exists(bundled):
+        return bundled
+    return val or bundled
+
+
 @dataclass(frozen=True)
 class Settings:
-    # Allow overriding; default to allow all origins (dev only).
+    # Allow overriding; default to allow all origins.
     cors_origin: str = os.getenv("CORS_ORIGIN", "*")
 
     # Model paths (prefer TFLite for serving).
-    model_tflite_path: str = os.getenv(
-        "MODEL_TFLITE_PATH",
-        # New TFLite exported from C:\Users\navin\Downloads\exported_model\exported_model
-        os.path.join(os.path.dirname(__file__), "model_from_exported.tflite"),
-    )
-    model_keras_path: str = os.getenv(
-        "MODEL_KERAS_PATH", r"C:\Users\navin\Downloads\blood_group_model (1).keras"
-    )
-    labels_path: str = os.getenv(
-        "LABELS_PATH",
-        os.path.join(os.path.dirname(__file__), "labels.json")
-    )
+    model_tflite_path: str = _resolve_file_path("MODEL_TFLITE_PATH", "model_from_exported.tflite")
+    model_keras_path: str = os.getenv("MODEL_KERAS_PATH", "")
+    labels_path: str = _resolve_file_path("LABELS_PATH", "labels.json")
 
     # Prediction behavior
     # For the demo UI, do not hard-block low quality images.
