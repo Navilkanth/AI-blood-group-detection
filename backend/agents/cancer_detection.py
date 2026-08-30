@@ -7,7 +7,10 @@ import os
 
 # Load model lazily
 _model = None
-MODEL_PATH = r"c:\Users\navin\Downloads\bd classification\Blood-Cancer-Detection-CNN-master\Blood-Cancer-Detection-CNN-master\mymodel.h5"
+DEFAULT_MODEL_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "Blood-Cancer-Detection-CNN-master", "Blood-Cancer-Detection-CNN-master", "mymodel.h5")
+)
+MODEL_PATH = os.getenv("CANCER_MODEL_PATH", DEFAULT_MODEL_PATH)
 
 def create_legacy_model():
     """

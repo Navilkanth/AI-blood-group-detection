@@ -5,7 +5,10 @@ import os
 
 # Load model lazily to save memory during startup
 _model = None
-MODEL_PATH = r"c:\Users\navin\Downloads\bd classification\Malaria-master\Malaria-master\model.h5"
+DEFAULT_MODEL_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "Malaria-master", "Malaria-master", "model.h5")
+)
+MODEL_PATH = os.getenv("MALARIA_MODEL_PATH", DEFAULT_MODEL_PATH)
 
 def get_model():
     global _model

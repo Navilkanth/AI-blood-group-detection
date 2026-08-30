@@ -23,7 +23,10 @@ class Settings:
     model_keras_path: str = os.getenv(
         "MODEL_KERAS_PATH", r"C:\Users\navin\Downloads\blood_group_model (1).keras"
     )
-    labels_path: str = os.getenv("LABELS_PATH", r"C:\Users\navin\Downloads\labels (2).json")
+    labels_path: str = os.getenv(
+        "LABELS_PATH",
+        os.path.join(os.path.dirname(__file__), "labels.json")
+    )
 
     # Prediction behavior
     # For the demo UI, do not hard-block low quality images.
