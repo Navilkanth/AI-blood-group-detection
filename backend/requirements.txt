@@ -7,3 +7,4 @@ tensorflow
 python-dotenv
 pymongo
 dnspython
+gunicorn
