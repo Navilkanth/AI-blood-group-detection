@@ -13,10 +13,10 @@ def _resolve_file_path(env_var: str, default_filename: str) -> str:
     val = os.getenv(env_var)
     if val and os.path.exists(val):
         return val
-    bundled = os.path.join(os.path.dirname(__file__), default_filename)
+    bundled = os.path.abspath(os.path.join(os.path.dirname(__file__), default_filename))
     if os.path.exists(bundled):
         return bundled
-    return val or bundled
+    return bundled
 
 
 @dataclass(frozen=True)
