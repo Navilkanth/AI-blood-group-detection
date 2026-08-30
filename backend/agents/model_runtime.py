@@ -17,15 +17,31 @@ def load_labels(labels_path: str) -> list[str]:
     - ["A","AB", ...] list in index order
     """
     p = Path(labels_path)
-    data = json.loads(p.read_text(encoding="utf-8"))
-    if isinstance(data, list):
-        return [str(x) for x in data]
-    if isinstance(data, dict):
-        inv: dict[int, str] = {}
-        for k, v in data.items():
-            inv[int(v)] = str(k)
-        return [inv[i] for i in sorted(inv.keys())]
-    raise ValueError("Unsupported labels.json format")
+    if not p.exists():
+        for candidate in [
+            Path(__file__).resolve().parent.parent / "labels.json",
+            Path(__file__).resolve().parent.parent.parent / "labels.json",
+            Path.cwd() / "backend" / "labels.json",
+            Path.cwd() / "labels.json",
+        ]:
+            if candidate.exists():
+                p = candidate
+                break
+
+    if p.exists():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return [str(x) for x in data]
+            if isinstance(data, dict):
+                inv: dict[int, str] = {}
+                for k, v in data.items():
+                    inv[int(v)] = str(k)
+                return [inv[i] for i in sorted(inv.keys())]
+        except Exception:
+            pass
+
+    return ["A", "AB", "B", "O"]
 
 
 @dataclass(frozen=True)

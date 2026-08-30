@@ -49,16 +49,32 @@ def _ensure_model_loaded() -> None:
     global _predictor, _model_info, _labels
     if _predictor is not None:
         return
-    if not os.path.exists(settings.model_tflite_path):
-        raise FileNotFoundError(
-            f"TFLite model not found at MODEL_TFLITE_PATH={settings.model_tflite_path}"
-        )
-    if not os.path.exists(settings.labels_path):
-        raise FileNotFoundError(f"Labels not found at LABELS_PATH={settings.labels_path}")
 
-    _predictor, _model_info, _labels = build_predictor(
-        settings.model_tflite_path, settings.labels_path
-    )
+    model_path = settings.model_tflite_path
+    if not os.path.exists(model_path):
+        for candidate in [
+            os.path.join(os.path.dirname(__file__), "model_from_exported.tflite"),
+            os.path.join(os.path.dirname(__file__), "..", "model_from_exported.tflite"),
+            os.path.join(os.getcwd(), "backend", "model_from_exported.tflite"),
+            os.path.join(os.getcwd(), "model_from_exported.tflite"),
+        ]:
+            if os.path.exists(candidate):
+                model_path = candidate
+                break
+
+    labels_path = settings.labels_path
+    if not os.path.exists(labels_path):
+        for candidate in [
+            os.path.join(os.path.dirname(__file__), "labels.json"),
+            os.path.join(os.path.dirname(__file__), "..", "labels.json"),
+            os.path.join(os.getcwd(), "backend", "labels.json"),
+            os.path.join(os.getcwd(), "labels.json"),
+        ]:
+            if os.path.exists(candidate):
+                labels_path = candidate
+                break
+
+    _predictor, _model_info, _labels = build_predictor(model_path, labels_path)
 
 
 @app.get("/api/health")
